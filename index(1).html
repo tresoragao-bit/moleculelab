@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>MoleculeLab by Trésor</title>
+<script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+
+<style>
+:root{
+--bg:#0d1117;
+--panel:#161b22;
+--text:white;
+--accent:#00ffcc;
+}
+
+.light{
+--bg:#f4f4f4;
+--panel:white;
+--text:black;
+}
+
+body{
+margin:0;
+font-family:Arial;
+background:var(--bg);
+color:var(--text);
+display:flex;
+flex-direction:column;
+height:100vh;
+}
+
+header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:10px 20px;
+background:var(--panel);
+border-bottom:1px solid #30363d;
+}
+
+.logo{
+font-weight:bold;
+color:var(--accent);
+}
+
+button{
+padding:8px 12px;
+border-radius:6px;
+border:none;
+cursor:pointer;
+background:var(--accent);
+}
+
+.container{
+display:flex;
+flex:1;
+}
+
+.sidebar{
+width:280px;
+background:var(--panel);
+padding:15px;
+box-sizing:border-box;
+}
+
+.sidebar input{
+width:100%;
+padding:8px;
+margin-bottom:10px;
+border-radius:6px;
+border:none;
+}
+
+.main{
+flex:1;
+display:flex;
+flex-direction:column;
+}
+
+#viewer{
+flex:1;
+}
+
+.info{
+padding:15px;
+background:var(--panel);
+border-top:1px solid #30363d;
+}
+
+@media(max-width:768px){
+.container{
+flex-direction:column;
+}
+.sidebar{
+width:100%;
+}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<div class="logo">🧪 MoleculeLab by Trésor</div>
+<button onclick="toggleMode()">Mode clair/sombre</button>
+</header>
+
+<div class="container">
+
+<div class="sidebar">
+<h3>Recherche Molécule</h3>
+<input type="text" id="searchInput" placeholder="Ex: glucose">
+<button onclick="searchMolecule()">Rechercher</button>
+</div>
+
+<div class="main">
+<div id="viewer"></div>
+<div class="info" id="infoBox">
+Informations scientifiques apparaîtront ici.
+</div>
+</div>
+
+</div>
+
+<script>
+
+let viewer = $3Dmol.createViewer("viewer",{backgroundColor:"#0d1117"});
+
+function toggleMode(){
+document.body.classList.toggle("light");
+}
+
+async function searchMolecule(){
+
+let name=document.getElementById("searchInput").value;
+
+if(!name) return;
+
+try{
+
+// 1️⃣ Récupérer CID
+let cidRes=await fetch(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${name}/cids/JSON`);
+let cidData=await cidRes.json();
+let cid=cidData.IdentifierList.CID[0];
+
+// 2️⃣ Récupérer structure 3D
+let xyzRes=await fetch(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/record/XYZ/?record_type=3d`);
+let xyzText=await xyzRes.text();
+
+// 3️⃣ Récupérer masse molaire
+let massRes=await fetch(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/property/MolecularWeight/JSON`);
+let massData=await massRes.json();
+let mass=massData.PropertyTable.Properties[0].MolecularWeight;
+
+// Affichage 3D
+viewer.clear();
+viewer.addModel(xyzText,"xyz");
+viewer.setStyle({},{stick:{},sphere:{scale:0.3}});
+viewer.zoomTo();
+viewer.render();
+
+// Infos
+document.getElementById("infoBox").innerHTML=
+`<b>Nom :</b> ${name}<br>
+<b>Masse molaire :</b> ${mass} g/mol<br>
+<b>Géométrie estimée :</b> Analyse automatique basique<br>
+<b>CID PubChem :</b> ${cid}`;
+
+}catch(error){
+document.getElementById("infoBox").innerHTML="Molécule non trouvée.";
+}
+
+}
+
+</script>
+
+</body>
+</html>
